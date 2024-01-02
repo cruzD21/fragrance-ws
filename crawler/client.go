@@ -62,7 +62,6 @@ func CreateRequest(c *http.Client, url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		errStr := fmt.Sprintf("Error Sending Request, Status Code: %d , %s", res.StatusCode, res.Status)

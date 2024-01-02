@@ -20,6 +20,7 @@ func (crwl *Crawler) FindLinks(baseURL string) []string {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Body.Close()
 
 	doc, _ := goquery.NewDocumentFromReader(res.Body)
 	doc.Find("a[href]").Each(func(i int, item *goquery.Selection) {
@@ -41,6 +42,10 @@ func (crwl *Crawler) GetFragrances(url string) {
 	var err error
 	client := CreateClient(nil)
 	res, err := CreateRequest(client, BaseBaseURL+url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {

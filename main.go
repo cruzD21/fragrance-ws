@@ -12,4 +12,5 @@ func main() {
 	for _, link := range perfumeLinks {
 		crwl.GetFragrances(link)
 	}
+	crawler.TryProxies()
 }
