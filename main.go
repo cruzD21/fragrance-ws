@@ -3,140 +3,172 @@ package main
 import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gocolly/colly/v2"
-	"github.com/imroc/req/v3"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
 
-var operatingSystem = []string{
-	"Windows", "macOS",
+var BaseURL = "https://www.fragrantica.com/perfume/Amouage/Reflection-Man-920.html"
+var BaseBaseURL = "https://www.fragrantica.com"
+var maxRequests = 7
+var userAgents = []string{
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+	"Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Safari/604.1.38",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:56.0) Gecko/20100101 Firefox/56.0",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Safari/604.1.38",
 }
 
-var userAgents = map[string][]string{
-	"Windows": {
-		"Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
-		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
-		"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:56.0) Gecko/20100101 Firefox/56.0",
-	},
-	"macOS": {
-		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
-		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Safari/604.1.38",
-		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Safari/604.1.38",
-	},
+type Collector struct {
+	reqNo       int
+	Delay       time.Duration
+	RandomDelay time.Duration
+	SleepTime   time.Duration
 }
 
-var visited = make(map[string]bool)
+func CreateClient(proxyString interface{}) *http.Client {
+	switch v := proxyString.(type) {
 
-func randomOS() (string, string) {
-	index := rand.Intn(len(operatingSystem))
-	osIndex := rand.Intn(3)
-	ops := operatingSystem[index]
-
-	return ops, userAgents[ops][osIndex]
+	case string:
+		proxyUrl, _ := url.Parse(v)
+		return &http.Client{
+			Timeout: 15 * time.Second,
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(proxyUrl),
+				DialContext: (&net.Dialer{
+					Timeout:   15 * time.Second,
+					KeepAlive: 15 * time.Second,
+					DualStack: true,
+				}).DialContext,
+			},
+		}
+	default:
+		return &http.Client{
+			Timeout: 15 * time.Second,
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   15 * time.Second,
+					KeepAlive: 15 * time.Second,
+					DualStack: true,
+				}).DialContext,
+			},
+		}
+	}
 }
 
-func ChangeHeaders(h *http.Header) {
-	p, userAgent := randomOS()
-	h.Set("sec-ch-ua-platform", p)
-	h.Set("user-agent", userAgent)
+func randomUserAgent() string {
+	rand.Seed(time.Now().Unix())
+	randNum := rand.Int() % len(userAgents)
+	return userAgents[randNum]
 }
 
-var nDelay = 1 * time.Second
-var rDelay = 2 * time.Second
-var waitTime = 1 * time.Minute
+//func createClient() (*http.Client, error) {
+//	// creates clients and sets up transport
+//	var err error
+//	client := &http.Client{
+//		Timeout: 15 * time.Second,
+//		Transport: &http.Transport{
+//			DialContext: (&net.Dialer{
+//				Timeout:   15 * time.Second,
+//				KeepAlive: 15 * time.Second,
+//				DualStack: true,
+//			}).DialContext,
+//		},
+//	}
+//	// Set the client Transport to the RoundTripper that solves the Cloudflare anti-bot
+//	client.Transport, err = cfrt.New(client.Transport)
+//	return client, err
+//
+//}
 
-func main() {
-	fakeChrome := req.DefaultClient().ImpersonateChrome()
-	baseURL := "https://www.fragrantica.com/perfume/Le-Labo/Another-13-10131.html"
+func validURL(url string) bool {
+	if !strings.HasPrefix(url, "/perfume") {
+		return false
+	}
+	if strings.HasPrefix(url, "/perfume-review") || strings.HasPrefix(url, "/perfume-finder") {
+		return false
+	}
+	//url only has strictly "/perfume"
+	return true
+}
 
-	maxReq := 9
-	noFrag := 0
-	reqCount := 0
-	//res, e := fakeChrome.R().Get(baseURL)
-	//if e != nil {
-	//	log.Fatal(e)
-	//}
-	//fmt.Println(res.StatusCode)
-
-	c := colly.NewCollector(
-		colly.MaxDepth(2),
-		colly.UserAgent(fakeChrome.Headers.Get("user-agent")),
-	)
-	err := c.Limit(&colly.LimitRule{
-		DomainGlob:  "*",
-		Delay:       nDelay,
-		RandomDelay: rDelay,
-	})
+func findLinks(baseURL string) []string {
+	var links []string
+	client := CreateClient(nil)
+	req, _ := http.NewRequest("GET", baseURL, nil)
+	req.Header.Set("User-Agent", randomUserAgent())
+	res, err := client.Do(req)
+	if err != nil {
+		log.Fatalln("Error making req find links", err)
+	}
+	defer res.Body.Close()
+	fmt.Println("res tatus from findLinks", res.StatusCode)
+	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
+	doc.Find("a[href]").Each(func(i int, item *goquery.Selection) {
+		link, _ := item.Attr("href")
+		//perfumeName := item.Text()
+		//could make this a function where prevents /perfume-review
+		if validURL(link) {
+			links = append(links, link)
+			//fmt.Println("Perfume Name: ", perfumeName)
+			//fmt.Println("url: ", url)
 
-	c.SetClient(&http.Client{
-		Transport: fakeChrome.Transport,
-	})
-
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting Page: ", r.URL)
-		if visited[r.URL.String()] {
-			fmt.Println("already visited page", r.URL.String())
-			r.Abort()
 		}
-		reqCount++
-		if reqCount >= maxReq {
-			fmt.Printf("max amount of req reached, sleeping for %s min . . .\n", waitTime)
-			time.Sleep(waitTime)
-			fmt.Println("resuming requests")
-			waitTime += 1 * time.Minute
-			reqCount = 0
-		}
-		//change headers logic
-		//fmt.Println("previous headers", r.Headers)
-		ChangeHeaders(r.Headers)
-		//fmt.Println("new headers", r.Headers)
-
 	})
+	fmt.Println("got all links")
+	return links
+}
 
-	c.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Status Code: ", r.StatusCode)
-		fmt.Println("request  headers ", r.Request.Headers)
-		fmt.Println("response headers ", r.Headers)
+func getFragrances(url string) {
+	var err error
+	client := CreateClient(nil)
+
+	req, err := http.NewRequest("GET", BaseBaseURL+url, nil)
+	req.Header.Set("User-Agent", randomUserAgent())
+	if err != nil {
+		log.Println("error creating request", err)
+		return
+	}
+	res, err := client.Do(req)
+	if err != nil {
 		log.Fatal(err)
+	}
+	fmt.Println("statos", res.StatusCode)
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		log.Fatalf("Status Code Error: %d %s", res.StatusCode, res.Status)
+	}
 
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	doc.Find("h1").Each(func(i int, s *goquery.Selection) {
+		fmt.Println(s.Text())
 	})
-	c.OnResponse(func(r *colly.Response) {
-		fmt.Println("Response Status Code:", r.StatusCode)
-		visited[r.Request.URL.String()] = true
-	})
-	//
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		link := e.Attr("href")
-		if strings.HasPrefix(link, "/perfume") {
-			absoluteURL := e.Request.AbsoluteURL(link)
-			fmt.Println("Found perfume link:", absoluteURL)
-			e.Request.Visit(absoluteURL)
-		}
-	})
-
-	c.OnHTML("div#main-content", func(e *colly.HTMLElement) {
-		e.DOM.Find("h1").Each(func(i int, s *goquery.Selection) {
-			fmt.Println(s.Text())
-		})
-		h6 := e.DOM.Find("h6").Text()
-		fmt.Println(h6)
-		e.DOM.Find(".accord-bar").Each(func(i int, s *goquery.Selection) {
-			fmt.Println("accord: ", s.Text())
-		})
-		noFrag++
-		fmt.Println("fragNo", noFrag)
+	h6 := doc.Find("h6").Text()
+	fmt.Println(h6)
+	doc.Find(".accord-bar").Each(func(i int, s *goquery.Selection) {
+		fmt.Println("accord: ", s.Text())
 	})
 
-	er := c.Visit(baseURL)
-	if er != nil {
-		log.Fatal(er)
+	fmt.Println("sleeping 10 sec before next req")
+	time.Sleep(10 * time.Second)
+}
+
+func main() {
+
+	perfumeLinks := findLinks(BaseURL)
+	for _, link := range perfumeLinks {
+		getFragrances(link)
 	}
 
 }
