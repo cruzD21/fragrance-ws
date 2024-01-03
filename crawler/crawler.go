@@ -4,19 +4,53 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 )
 
+var BaseURL = "https://www.fragrantica.com/perfume/Amouage/Reflection-Man-920.html"
 var BaseBaseURL = "https://www.fragrantica.com"
 
-type Crawler struct{}
+type Crawler struct {
+	Client *http.Client
+	Delay  time.Duration
+}
+
+func Run() error {
+	var err error
+	//here I have a client ready to start crawling
+	client, err := getProxyClient()
+	if err != nil {
+		return err
+	}
+	crawler := &Crawler{
+		Client: client,
+		Delay:  1 * time.Second,
+	}
+
+	err = crawler.Crawl()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (crwl *Crawler) Crawl() error {
+	pages := crwl.FindLinks(BaseURL)
+	for _, page := range pages {
+		crwl.GetFragrances(page)
+		time.Sleep(crwl.Delay) // need to implement concurrency in future
+	}
+
+	return nil
+}
 
 func (crwl *Crawler) FindLinks(baseURL string) []string {
 	var resultArr []string
 
-	client := CreateClient(nil)
-	res, err := CreateRequest(client, baseURL)
+	res, err := CreateRequest(crwl.Client, baseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,23 +59,16 @@ func (crwl *Crawler) FindLinks(baseURL string) []string {
 	doc, _ := goquery.NewDocumentFromReader(res.Body)
 	doc.Find("a[href]").Each(func(i int, item *goquery.Selection) {
 		link, _ := item.Attr("href")
-		//perfumeName := item.Text()
-		//could make this a function where prevents /perfume-review
 		if validURL(link) {
 			resultArr = append(resultArr, link)
-			//fmt.Println("Perfume Name: ", perfumeName)
-			//fmt.Println("url: ", url)
-
 		}
 	})
-	fmt.Println("got all links")
 	return resultArr
 }
 
 func (crwl *Crawler) GetFragrances(url string) {
 	var err error
-	client := CreateClient(nil)
-	res, err := CreateRequest(client, BaseBaseURL+url)
+	res, err := CreateRequest(crwl.Client, BaseBaseURL+url)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,9 +86,6 @@ func (crwl *Crawler) GetFragrances(url string) {
 	doc.Find(".accord-bar").Each(func(i int, s *goquery.Selection) {
 		fmt.Println("accord: ", s.Text())
 	})
-
-	fmt.Println("sleeping 10 sec before next req")
-	time.Sleep(10 * time.Second)
 }
 
 func validURL(url string) bool {

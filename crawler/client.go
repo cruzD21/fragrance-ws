@@ -19,7 +19,7 @@ var userAgents = []string{
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Safari/604.1.38",
 }
 
-func CreateClient(proxyString interface{}) *http.Client {
+func createClient(proxyString interface{}) *http.Client {
 	switch v := proxyString.(type) {
 
 	case string:
@@ -53,7 +53,18 @@ func CreateRequest(c *http.Client, url string) (*http.Response, error) {
 	var err error
 
 	req, err := http.NewRequest("GET", url, nil)
-	req.Header.Set("User-Agent", randomUserAgent())
+	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Add("Accept-Language", "en")
+	req.Header.Add("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`)
+	req.Header.Add("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Add("Sec-Ch-Ua-Platform", `"Linux"`)
+	req.Header.Add("Sec-Fetch-Dest", "document")
+	req.Header.Add("Sec-Fetch-Mode", "navigate")
+	req.Header.Add("Sec-Fetch-Site", "none")
+	req.Header.Add("Sec-Fetch-User", "?1")
+	req.Header.Add("Upgrade-Insecure-Requests", "1")
+	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
 	if err != nil {
 		return nil, err
 	}
