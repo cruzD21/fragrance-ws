@@ -11,6 +11,7 @@ import (
 
 var BaseURL = "https://www.fragrantica.com/perfume/Amouage/Reflection-Man-920.html"
 var BaseBaseURL = "https://www.fragrantica.com"
+var noSucReq = 0
 
 type Crawler struct {
 	Client *http.Client
@@ -24,6 +25,7 @@ func Run() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("created client proxy successfully")
 	crawler := &Crawler{
 		Client: client,
 		Delay:  1 * time.Second,
@@ -33,15 +35,20 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("done crawling")
 	return nil
 }
 
 func (crwl *Crawler) Crawl() error {
 	pages := crwl.FindLinks(BaseURL)
 	for _, page := range pages {
-		crwl.GetFragrances(page)
-		time.Sleep(crwl.Delay) // need to implement concurrency in future
+
+		//swapping IP
+		newClient, _ := getProxyClient()
+		crwl.Client = newClient
+
+		crwl.GetFragrances(page) // need to implement concurrency in future
+		time.Sleep(crwl.Delay)
 	}
 
 	return nil
@@ -63,6 +70,7 @@ func (crwl *Crawler) FindLinks(baseURL string) []string {
 			resultArr = append(resultArr, link)
 		}
 	})
+	fmt.Println("found all links in base URL")
 	return resultArr
 }
 
@@ -70,22 +78,37 @@ func (crwl *Crawler) GetFragrances(url string) {
 	var err error
 	res, err := CreateRequest(crwl.Client, BaseBaseURL+url)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) //429 too many requests
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode == http.StatusForbidden {
+		return
+	}
+	noSucReq++ //to delete in future
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	doc.Find("h1").Each(func(i int, s *goquery.Selection) {
-		fmt.Println(s.Text())
-	})
-	h6 := doc.Find("h6").Text()
-	fmt.Println(h6)
-	doc.Find(".accord-bar").Each(func(i int, s *goquery.Selection) {
-		fmt.Println("accord: ", s.Text())
-	})
+
+	name := doc.Find("h1").Text()
+	brand := doc.Find("span[itemprop='name'][class='vote-button-name']").Text()
+	fmt.Println(res.StatusCode, name, brand)
+	//mainAccords := doc.Find("h6").Text()
+	//
+	//doc.Find("h4[style='margin-top: 0.5rem;']").Each(func(i int, s *goquery.Selection) {
+	//	s.Next().Children().Each(func(i int, s *goquery.Selection) {
+	//		//noteName := s.Children().Last().Text()
+	//	}) //this div contains all divs containing notes
+
+	//})
+	//
+	//doc.Find(".accord-bar").Each(func(i int, s *goquery.Selection) {
+	//	fmt.Println("accord: ", s.Text())
+	//})
+	////notes := doc.Find("div#pyramid")
+	//fmt.Println(name, brand, mainAccords)
 }
 
 func validURL(url string) bool {

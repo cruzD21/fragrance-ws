@@ -10,5 +10,4 @@ func main() {
 	if err := crawler.Run(); err != nil {
 		log.Fatal(err)
 	}
-
 }

@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -53,30 +52,21 @@ func CreateRequest(c *http.Client, url string) (*http.Response, error) {
 	var err error
 
 	req, err := http.NewRequest("GET", url, nil)
-	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-	req.Header.Add("Accept-Language", "en")
-	req.Header.Add("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`)
-	req.Header.Add("Sec-Ch-Ua-Mobile", "?0")
-	req.Header.Add("Sec-Ch-Ua-Platform", `"Linux"`)
-	req.Header.Add("Sec-Fetch-Dest", "document")
-	req.Header.Add("Sec-Fetch-Mode", "navigate")
-	req.Header.Add("Sec-Fetch-Site", "none")
-	req.Header.Add("Sec-Fetch-User", "?1")
-	req.Header.Add("Upgrade-Insecure-Requests", "1")
-	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
 	if err != nil {
 		return nil, err
 	}
+	setHeaders(req)
 
 	res, err := c.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
+	if res.StatusCode == http.StatusForbidden {
+		return res, nil //invalid ip, skip to next
+	}
 	if res.StatusCode != http.StatusOK {
-		errStr := fmt.Sprintf("Error Sending Request, Status Code: %d , %s", res.StatusCode, res.Status)
-		return nil, errors.New(errStr)
+		return nil, fmt.Errorf("error Sending Request, Status Code: %d , %s", res.StatusCode, res.Status)
 	}
 	return res, nil
 }
@@ -84,4 +74,21 @@ func CreateRequest(c *http.Client, url string) (*http.Response, error) {
 func randomUserAgent() string {
 	randNum := rand.Int() % len(userAgents)
 	return userAgents[randNum]
+}
+
+func setHeaders(req *http.Request) {
+	headers := http.Header{
+		"Accept":                    {"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"},
+		"Accept-Language":           {"en"},
+		"Sec-Ch-Ua":                 {"\"Not A Brand\";v=\"99\", \"Chromium\";v=\"90\""},
+		"Sec-Ch-Ua-Mobile":          {"?0"},
+		"Sec-Ch-Ua-Platform":        {"\"Linux\""},
+		"Sec-Fetch-Dest":            {"document"},
+		"Sec-Fetch-Mode":            {"navigate"},
+		"Sec-Fetch-Site":            {"none"},
+		"Sec-Fetch-User":            {"?1"},
+		"Upgrade-Insecure-Requests": {"1"},
+		"User-Agent":                {"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"},
+	}
+	req.Header = headers
 }
