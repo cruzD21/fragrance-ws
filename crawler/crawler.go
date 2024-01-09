@@ -31,11 +31,10 @@ func Run() error {
 		Delay:  1 * time.Second,
 	}
 
-	err = crawler.Crawl()
-	if err != nil {
+	if err = crawler.Crawl(); err != nil {
 		return err
 	}
-	fmt.Println("done crawling")
+
 	return nil
 }
 
