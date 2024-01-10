@@ -84,30 +84,14 @@ func (crwl *Crawler) GetFragrances(url string) {
 	if res.StatusCode == http.StatusForbidden {
 		return
 	}
-	noSucReq++ //to delete in future
 
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	fragrance, err := parseFragrancePage(res)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
+	fmt.Println(fragrance)
+	// add to db
 
-	name := doc.Find("h1").Text()
-	brand := doc.Find("span[itemprop='name'][class='vote-button-name']").Text()
-	fmt.Println(res.StatusCode, name, brand)
-	//mainAccords := doc.Find("h6").Text()
-	//
-	//doc.Find("h4[style='margin-top: 0.5rem;']").Each(func(i int, s *goquery.Selection) {
-	//	s.Next().Children().Each(func(i int, s *goquery.Selection) {
-	//		//noteName := s.Children().Last().Text()
-	//	}) //this div contains all divs containing notes
-
-	//})
-	//
-	//doc.Find(".accord-bar").Each(func(i int, s *goquery.Selection) {
-	//	fmt.Println("accord: ", s.Text())
-	//})
-	////notes := doc.Find("div#pyramid")
-	//fmt.Println(name, brand, mainAccords)
 }
 
 func validURL(url string) bool {
