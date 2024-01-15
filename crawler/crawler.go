@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"fragrance-ws/models"
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
@@ -73,7 +74,7 @@ func (crwl *Crawler) FindLinks(baseURL string) []string {
 	return resultArr
 }
 
-func (crwl *Crawler) GetFragrances(url string) {
+func (crwl *Crawler) GetFragrances(url string) (*models.FragrancePage, error) {
 	var err error
 	res, err := CreateRequest(crwl.Client, BaseBaseURL+url)
 	if err != nil {
@@ -82,16 +83,16 @@ func (crwl *Crawler) GetFragrances(url string) {
 	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusForbidden {
-		return
+		return nil, nil
 	}
 
-	fragrance, err := parseFragrancePage(res)
+	data, err := parseFragrancePage(res)
 	if err != nil {
-		return
+		return nil, err
 	}
-	fmt.Println(fragrance)
-	// add to db
 
+	// add to db
+	return data, nil
 }
 
 func validURL(url string) bool {

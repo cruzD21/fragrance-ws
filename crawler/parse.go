@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"fragrance-ws/models"
 	"github.com/PuerkitoBio/goquery"
 	"net/http"
 )
@@ -14,15 +15,44 @@ type Fragrance struct {
 	BaseNotes   []string
 }
 
-func parseFragrancePage(res *http.Response) (*Fragrance, error) {
+func parseFragrancePage(res *http.Response) (*models.FragrancePage, error) {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
 		return nil, err
 	}
-	frag := &Fragrance{
-		Name:  doc.Find("h1").Text(),
-		Brand: doc.Find("span[itemprop='name'][class='vote-button-name']").Text(),
+
+	fragrance := parseFragrance(doc)
+	fragranceHouse := parseFragranceHouse(doc)
+	noteCategories := parseNotePyramid(doc)
+	accords := parseAccords(doc)
+
+	return &models.FragrancePage{
+		Fragrance:   fragrance,
+		FragHouse:   fragranceHouse,
+		NoteCat:     noteCategories,
+		MainAccords: accords,
+	}, nil
+}
+
+func parseFragrance(doc *goquery.Document) models.Fragrance {
+	name := doc.Find("h1").Text()
+	description := doc.Find("div[itemprop='description'").Text()
+	return models.Fragrance{
+		Name:        name,
+		Description: description,
 	}
+}
+
+func parseFragranceHouse(doc *goquery.Document) models.FragranceHouse {
+	name := doc.Find("h1").Text()
+	return models.FragranceHouse{
+		Name: name,
+	}
+}
+
+func parseNotePyramid(doc *goquery.Document) models.NoteCategories {
+	//some notes only have one level so need to account for that
+	var topNotes, middleNotes, baseNotes []string
 
 	doc.Find("h4 > b").Each(func(i int, s *goquery.Selection) {
 		pyramidLevel := s.Text() //pyramid accords
@@ -30,19 +60,26 @@ func parseFragrancePage(res *http.Response) (*Fragrance, error) {
 			note := s2.Children().Last().Last().Text()
 			switch pyramidLevel {
 			case "Top Notes":
-				frag.TopNotes = append(frag.TopNotes, note)
+				topNotes = append(topNotes, note)
 			case "Middle Notes":
-				frag.MiddleNotes = append(frag.MiddleNotes, note)
+				middleNotes = append(middleNotes, note)
 			case "Base Notes":
-				frag.BaseNotes = append(frag.BaseNotes, note)
+				baseNotes = append(baseNotes, note)
 			}
-
 		})
-
 	})
+	return models.NoteCategories{
+		TopNotes:    topNotes,
+		MiddleNotes: middleNotes,
+		BaseNotes:   baseNotes,
+	}
+}
+
+func parseAccords(doc *goquery.Document) []string {
+	var mainAccords []string
 	doc.Find(".accord-bar").Each(func(i int, s *goquery.Selection) {
 		accord := s.Text()
-		frag.MainAccords = append(frag.MainAccords, accord)
+		mainAccords = append(mainAccords, accord)
 	})
-	return frag, nil
+	return mainAccords
 }
