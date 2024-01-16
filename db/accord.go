@@ -28,7 +28,7 @@ func (db *DatabaseConn) InsertAccordList(accordList []string, fragID int) error 
 func (db *DatabaseConn) GetOrInsertAccord(accord models.Accord) (int, error) {
 	var err error
 	var accordID int
-	accordID, err = db.getNoteID(accord.Name)
+	accordID, err = db.getAccordID(accord.Name)
 	if err != nil {
 		//note does not exist
 

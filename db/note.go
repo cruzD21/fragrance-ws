@@ -21,6 +21,25 @@ func (db *DatabaseConn) InsertNoteCategories(notes models.NoteCategories, fragID
 	return nil
 }
 
+func (db *DatabaseConn) GetOrInsertNote(noteName string) (int, error) {
+	var err error
+	var noteID int
+	noteID, err = db.getNoteID(noteName)
+	if err != nil {
+		//note does not exist
+		row := models.Note{
+			Name:        noteName,
+			Description: "test note",
+		}
+		noteID, err = db.InsertNote(row)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return noteID, nil
+}
+
 func (db *DatabaseConn) processNoteCategory(noteType string, fragID int, noteList []string) error {
 
 	for _, noteName := range noteList {
@@ -52,25 +71,6 @@ func (db *DatabaseConn) getNoteID(noteName string) (int, error) {
 	}
 
 	return res[0].ID, err
-}
-
-func (db *DatabaseConn) GetOrInsertNote(noteName string) (int, error) {
-	var err error
-	var noteID int
-	noteID, err = db.getNoteID(noteName)
-	if err != nil {
-		//note does not exist
-		row := models.Note{
-			Name:        noteName,
-			Description: "test note",
-		}
-		noteID, err = db.InsertNote(row)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	return noteID, nil
 }
 
 func (db *DatabaseConn) InsertNote(note models.Note) (int, error) {
