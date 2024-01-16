@@ -15,10 +15,10 @@ type Fragrance struct {
 	BaseNotes   []string
 }
 
-func parseFragrancePage(res *http.Response) (*models.FragrancePage, error) {
+func parseFragrancePage(res *http.Response) (models.FragrancePage, error) {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		return nil, err
+		return models.FragrancePage{}, err
 	}
 
 	fragrance := parseFragrance(doc)
@@ -26,7 +26,7 @@ func parseFragrancePage(res *http.Response) (*models.FragrancePage, error) {
 	noteCategories := parseNotePyramid(doc)
 	accords := parseAccords(doc)
 
-	return &models.FragrancePage{
+	return models.FragrancePage{
 		Fragrance:   fragrance,
 		FragHouse:   fragranceHouse,
 		NoteCat:     noteCategories,
