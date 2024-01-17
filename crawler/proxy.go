@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"fragrance-ws/db"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
@@ -21,21 +22,23 @@ func getProxyClient() (*http.Client, error) {
 }
 
 func Test() {
+	supa := db.DatabaseConn{}
+	err := supa.DatabaseInit()
 
 	client, _ := getProxyClient()
 	res, err := CreateRequest(client, BaseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer res.Body.Close()
 	//printing ip logic
 
-	frag, err := parseFragrancePage(res)
+	page, err := parseFragrancePage(res)
 
-	// Printing the response body
+	err = supa.InsertPage(page)
+	if err != nil {
+		log.Fatalf("error inserting into db with error : %e", err)
+	}
 
-	// You can also print other parts of the response like status code, headers etc.
-
-	//fmt.Println("Headers:", res.Header)
-	res.Body.Close()
-
+	log.Println("code inserted  page successfully to db")
 }

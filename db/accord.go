@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"fragrance-ws/models"
 )
 
@@ -51,7 +52,7 @@ func (db *DatabaseConn) InsertAccord(accord models.Accord) (int, error) {
 			accord,
 			false,
 			"",
-			"minimal",
+			"representation",
 			"exact").
 		Execute()
 	if err != nil {
@@ -80,6 +81,9 @@ func (db *DatabaseConn) getAccordID(accordName string) (int, error) {
 	}
 	if err = json.Unmarshal(data, &res); err != nil {
 		return 0, err
+	}
+	if len(res) == 0 {
+		return 0, fmt.Errorf("no note with name %s", accordName)
 	}
 
 	return res[0].ID, err

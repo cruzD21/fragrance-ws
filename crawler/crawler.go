@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"fmt"
-	"fragrance-ws/models"
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
@@ -19,40 +18,40 @@ type Crawler struct {
 	Delay  time.Duration
 }
 
-func Run() error {
-	var err error
-	//here I have a client ready to start crawling
-	client, err := getProxyClient()
-	if err != nil {
-		return err
-	}
-	fmt.Println("created client proxy successfully")
-	crawler := &Crawler{
-		Client: client,
-		Delay:  1 * time.Second,
-	}
+//func Run() error {
+//	var err error
+//	//here I have a client ready to start crawling
+//	client, err := getProxyClient()
+//	if err != nil {
+//		return err
+//	}
+//	fmt.Println("created client proxy successfully")
+//	crawler := &Crawler{
+//		Client: client,
+//		Delay:  1 * time.Second,
+//	}
+//
+//	if err = crawler.Crawl(); err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
-	if err = crawler.Crawl(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (crwl *Crawler) Crawl() error {
-	pages := crwl.FindLinks(BaseURL)
-	for _, page := range pages {
-
-		//swapping IP
-		newClient, _ := getProxyClient()
-		crwl.Client = newClient
-
-		crwl.GetFragrances(page) // need to implement concurrency in future
-		time.Sleep(crwl.Delay)
-	}
-
-	return nil
-}
+//func (crwl *Crawler) Crawl() error {
+//	pages := crwl.FindLinks(BaseURL)
+//	for _, page := range pages {
+//
+//		//swapping IP
+//		newClient, _ := getProxyClient()
+//		crwl.Client = newClient
+//
+//		crwl.GetFragrances(page) // need to implement concurrency in future
+//		time.Sleep(crwl.Delay)
+//	}
+//
+//	return nil
+//}
 
 func (crwl *Crawler) FindLinks(baseURL string) []string {
 	var resultArr []string
@@ -74,26 +73,27 @@ func (crwl *Crawler) FindLinks(baseURL string) []string {
 	return resultArr
 }
 
-func (crwl *Crawler) GetFragrances(url string) (*models.FragrancePage, error) {
-	var err error
-	res, err := CreateRequest(crwl.Client, BaseBaseURL+url)
-	if err != nil {
-		log.Fatal(err) //429 too many requests
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode == http.StatusForbidden {
-		return nil, nil
-	}
-
-	data, err := parseFragrancePage(res)
-	if err != nil {
-		return nil, err
-	}
-
-	// add to db
-	return data, nil
-}
+//
+//func (crwl *Crawler) GetFragrances(url string) (*models.FragrancePage, error) {
+//	var err error
+//	res, err := CreateRequest(crwl.Client, BaseBaseURL+url)
+//	if err != nil {
+//		log.Fatal(err) //429 too many requests
+//	}
+//	defer res.Body.Close()
+//
+//	if res.StatusCode == http.StatusForbidden {
+//		return nil, nil
+//	}
+//
+//	data, err := parseFragrancePage(res)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	// add to db
+//	return data, nil
+//}
 
 func validURL(url string) bool {
 	if !strings.HasPrefix(url, "/perfume") {

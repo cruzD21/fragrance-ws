@@ -93,9 +93,10 @@ func (db *DatabaseConn) InsertIntoFragranceHouse(house models.FragranceHouse) (i
 			house,
 			false,
 			"",
-			"minimal",
+			"representation",
 			"exact",
 		).Execute()
+
 	if err != nil {
 		return 0, err
 	}
