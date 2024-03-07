@@ -44,7 +44,7 @@ func parseFragrance(doc *goquery.Document) models.Fragrance {
 }
 
 func parseFragranceHouse(doc *goquery.Document) models.FragranceHouse {
-	name := doc.Find("h1").Text()
+	name := doc.Find(".vote-button-name").Text()
 	return models.FragranceHouse{
 		Name: name,
 	}

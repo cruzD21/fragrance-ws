@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"fragrance-ws/models"
 	"log"
 )
@@ -73,6 +74,11 @@ func (db *DatabaseConn) getNoteID(noteName string) (int, error) {
 	if err = json.Unmarshal(data, &res); err != nil {
 		return 0, err
 	}
+	if len(res) == 0 {
+		// Handle the case where no results are found
+		// You could return an error or a designated 'not found' value
+		return 0, fmt.Errorf("no note found with name %s", noteName)
+	}
 
 	return res[0].ID, nil
 }
@@ -82,7 +88,7 @@ func (db *DatabaseConn) InsertNote(note models.Note) (int, error) {
 	var res []struct {
 		NoteID int `json:"note_id"`
 	}
-	log.Println(note)
+	//log.Println(note)
 	data, _, err := db.Supabase.
 		From("note").
 		Insert(
