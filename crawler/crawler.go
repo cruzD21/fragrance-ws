@@ -47,19 +47,21 @@ func Run() error {
 
 func (crwl *Crawler) Crawl() error {
 	var err error
-	pages := crwl.FindLinks(BaseBaseURL)
+	pages := crwl.FindLinks(BaseBaseURL) // no repeating urls saved
 	fmt.Println("printing pages")
-	for i, page := range pages {
-		fmt.Printf("page no %d, url: %s\n", i, page)
-	}
+	//index := 0
+	//for page := range pages {
+	//	fmt.Printf("page no %d, url: %s\n", index, page)
+	//	index++
+	//}
 	//fmt.Println(pages)
 	err = DBConn.DatabaseInit()
 	if err != nil {
 		return err
 	}
 
-	for _, page := range pages {
-		if noReq == 20 {
+	for page := range pages {
+		if noReq == 10 {
 			return fmt.Errorf("max req done")
 		}
 		//swapping IP
@@ -68,12 +70,13 @@ func (crwl *Crawler) Crawl() error {
 
 		data, err := crwl.GetFragrances(page) // need to implement concurrency in future
 		if err != nil {
-			return err
+			log.Println(err, "skipping page") // data contains empty value (skip to next)
+			continue
 		}
 
 		err = DBConn.InsertPage(data)
 		if err != nil {
-			return err
+			continue //skip to next page
 		}
 		noReq++
 		//time.Sleep(crwl.Delay)
@@ -82,12 +85,13 @@ func (crwl *Crawler) Crawl() error {
 	return nil
 }
 
-func (crwl *Crawler) FindLinks(baseURL string) []string {
-	var resultArr []string
+func (crwl *Crawler) FindLinks(baseURL string) map[string]bool {
+	resultMap := make(map[string]bool)
 
 	res, err := CreateRequest(crwl.Client, baseURL)
 	if err != nil {
-		log.Fatal(err)
+
+		log.Fatal(err) //
 	}
 	defer res.Body.Close()
 
@@ -95,11 +99,13 @@ func (crwl *Crawler) FindLinks(baseURL string) []string {
 	doc.Find("a[href]").Each(func(i int, item *goquery.Selection) {
 		link, _ := item.Attr("href")
 		if validURL(link) {
-			resultArr = append(resultArr, link)
+			if _, exist := resultMap[link]; !exist {
+				resultMap[link] = true
+			}
 		}
 	})
 	fmt.Println("found all links in base URL")
-	return resultArr
+	return resultMap
 }
 
 func (crwl *Crawler) GetFragrances(url string) (models.FragrancePage, error) {

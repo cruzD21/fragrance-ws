@@ -1,8 +1,10 @@
 package crawler
 
 import (
+	"errors"
 	"fragrance-ws/models"
 	"github.com/PuerkitoBio/goquery"
+	"log"
 	"net/http"
 )
 
@@ -21,8 +23,14 @@ func parseFragrancePage(res *http.Response) (models.FragrancePage, error) {
 		return models.FragrancePage{}, err
 	}
 
-	fragrance := parseFragrance(doc)
-	fragranceHouse := parseFragranceHouse(doc)
+	fragrance, err := parseFragrance(doc)
+	if err != nil {
+		return models.FragrancePage{}, err
+	}
+	fragranceHouse, err := parseFragranceHouse(doc)
+	if err != nil {
+		return models.FragrancePage{}, err
+	}
 	noteCategories := parseNotePyramid(doc)
 	accords := parseAccords(doc)
 
@@ -34,20 +42,36 @@ func parseFragrancePage(res *http.Response) (models.FragrancePage, error) {
 	}, nil
 }
 
-func parseFragrance(doc *goquery.Document) models.Fragrance {
+func parseFragrance(doc *goquery.Document) (models.Fragrance, error) {
 	name := doc.Find("h1").Text()
-	description := doc.Find("div[itemprop='description'").Text()
+	description := doc.Find("div[itemprop='description'] p").First().Text()
+	log.Println(name)
+
+	if name == "" {
+		log.Println("empty frag name im skipping ")
+		return models.Fragrance{}, errors.New("the fragrance name is empty")
+	}
+
+	if description == "" {
+		return models.Fragrance{}, errors.New("the fragrance description is empty")
+	}
+
 	return models.Fragrance{
 		Name:        name,
 		Description: description,
-	}
+	}, nil
 }
 
-func parseFragranceHouse(doc *goquery.Document) models.FragranceHouse {
+func parseFragranceHouse(doc *goquery.Document) (models.FragranceHouse, error) {
 	name := doc.Find(".vote-button-name").Text()
+	log.Println(name)
+	if len(name) == 0 {
+		log.Println("empty house name im skipping ", name)
+		return models.FragranceHouse{}, errors.New("empty fragrance name")
+	}
 	return models.FragranceHouse{
 		Name: name,
-	}
+	}, nil
 }
 
 func parseNotePyramid(doc *goquery.Document) models.NoteCategories {

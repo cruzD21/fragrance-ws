@@ -2,9 +2,11 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fragrance-ws/models"
 	"github.com/joho/godotenv"
 	"github.com/supabase-community/supabase-go"
+	"log"
 	"os"
 )
 
@@ -41,6 +43,7 @@ func (db *DatabaseConn) InsertPage(page models.FragrancePage) error {
 	if fragID, err = db.InsertIntoFragrances(page.Fragrance, houseID); err != nil {
 		return err
 	}
+
 	//insert note
 	if err = db.InsertNoteCategories(page.NoteCat, fragID); err != nil {
 		return err
@@ -55,12 +58,16 @@ func (db *DatabaseConn) InsertPage(page models.FragrancePage) error {
 }
 
 func (db *DatabaseConn) InsertIntoFragrances(fragrance models.Fragrance, houseID int) (int, error) {
+	if fragrance.Name == "" {
+		return 0, errors.New("fragrance name empty, do not insert")
+	}
 	var err error
 	var res []struct {
 		FragranceID int `json:"fragrance_id"`
 	}
 
 	fragrance.HouseID = houseID
+	log.Println("house id", houseID)
 	data, _, err := db.Supabase.
 		From("fragrance").
 		Insert(
@@ -69,8 +76,7 @@ func (db *DatabaseConn) InsertIntoFragrances(fragrance models.Fragrance, houseID
 			"",
 			"representation",
 			"exact",
-		).
-		Execute()
+		).Execute()
 
 	if err != nil {
 		return 0, err
@@ -83,9 +89,16 @@ func (db *DatabaseConn) InsertIntoFragrances(fragrance models.Fragrance, houseID
 }
 
 func (db *DatabaseConn) InsertIntoFragranceHouse(house models.FragranceHouse) (int, error) {
+	if house.Name == "" {
+		return 0, errors.New("empty name, do not insert")
+	}
 	var err error
 	var res []struct {
 		HouseID int `json:"house_id"`
+	}
+	houseID, err := db.GetHouseID(house.Name)
+	if err == nil {
+		return houseID, err // house already exists
 	}
 	data, _, err := db.Supabase.
 		From("fragrance_house").
@@ -104,6 +117,7 @@ func (db *DatabaseConn) InsertIntoFragranceHouse(house models.FragranceHouse) (i
 	if err = json.Unmarshal(data, &res); err != nil {
 		return 0, err
 	}
+
 	return res[0].HouseID, nil
 }
 
@@ -121,5 +135,36 @@ func (db *DatabaseConn) GetFragranceID(fragName string) (int, error) {
 	if err = json.Unmarshal(data, &res); err != nil {
 		return 0, err
 	}
+	return res[0].ID, err
+}
+
+func (db *DatabaseConn) GetHouseID(HouseName string) (int, error) {
+	if HouseName == "" {
+		return 0, errors.New("empty house name return")
+	}
+
+	var err error
+	var res []struct {
+		ID int `json:"house_id"`
+	}
+	data, _, err := db.Supabase.
+		From("fragrance_house").
+		Select("house_id", "1", false).
+		Eq("name", HouseName).
+		Execute()
+
+	if err != nil {
+		return 0, err
+	}
+
+	// Check if the query returned any rows
+	if err = json.Unmarshal(data, &res); err != nil {
+		return 0, err
+	}
+
+	if len(res) == 0 {
+		return 0, errors.New("no such house exists")
+	}
+
 	return res[0].ID, err
 }
