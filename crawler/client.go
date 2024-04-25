@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -56,12 +57,13 @@ func CreateRequest(c *http.Client, url string) (*http.Response, error) {
 		return nil, err
 	}
 	setHeaders(req)
-
+	log.Println("creating request for ", url)
 	res, err := c.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
+	log.Println("request successful ", url)
 	if res.StatusCode == http.StatusForbidden {
 		return res, nil //invalid ip, skip to next
 	}

@@ -26,7 +26,7 @@ func Test() {
 	err := supa.DatabaseInit()
 
 	client, _ := getProxyClient()
-	res, err := CreateRequest(client, BaseURL)
+	res, err := CreateRequest(client, "https://www.fragrantica.com/perfume/Puzzle-Parfum/Puzzle-Daylight-91072.html")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,10 +34,14 @@ func Test() {
 	//printing ip logic
 
 	page, err := parseFragrancePage(res)
+	if err != nil {
+		log.Printf("error inserting into db with error : %e", err)
+	}
+	fmt.Printf("%+v\n", page)
 
 	err = supa.InsertPage(page)
 	if err != nil {
-		log.Fatalf("error inserting into db with error : %e", err)
+		log.Printf("error inserting into db with error : %e", err)
 	}
 
 	log.Println("code inserted  page successfully to db")

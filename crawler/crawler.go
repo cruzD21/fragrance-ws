@@ -47,39 +47,35 @@ func Run() error {
 
 func (crwl *Crawler) Crawl() error {
 	var err error
+	var failedUrls []string
+	var data models.FragrancePage
+
 	pages := crwl.FindLinks(BaseBaseURL) // no repeating urls saved
-	fmt.Println("printing pages")
-	//index := 0
-	//for page := range pages {
-	//	fmt.Printf("page no %d, url: %s\n", index, page)
-	//	index++
-	//}
-	//fmt.Println(pages)
+	log.Println("total pages 	", len(pages))
+
 	err = DBConn.DatabaseInit()
 	if err != nil {
 		return err
 	}
 
 	for page := range pages {
-		if noReq == 10 {
-			return fmt.Errorf("max req done")
-		}
 		//swapping IP
 		newClient, _ := getProxyClient()
 		crwl.Client = newClient
 
-		data, err := crwl.GetFragrances(page) // need to implement concurrency in future
+		data, err = crwl.GetFragrances(page)
 		if err != nil {
-			log.Println(err, "skipping page") // data contains empty value (skip to next)
+			log.Println(err, "skipping page")
 			continue
 		}
+		fmt.Printf("%+v\n", data)
 
 		err = DBConn.InsertPage(data)
 		if err != nil {
+			log.Printf("error inserting into db with error : %e", err)
+			failedUrls = append(failedUrls, page)
 			continue //skip to next page
 		}
-		noReq++
-		//time.Sleep(crwl.Delay)
 	}
 
 	return nil
@@ -110,6 +106,8 @@ func (crwl *Crawler) FindLinks(baseURL string) map[string]bool {
 
 func (crwl *Crawler) GetFragrances(url string) (models.FragrancePage, error) {
 	var err error
+	var data models.FragrancePage
+
 	res, err := CreateRequest(crwl.Client, BaseBaseURL+url)
 	if err != nil {
 		log.Fatal(err) //429 too many requests
@@ -120,7 +118,7 @@ func (crwl *Crawler) GetFragrances(url string) (models.FragrancePage, error) {
 		return models.FragrancePage{}, nil
 	}
 
-	data, err := parseFragrancePage(res)
+	data, err = parseFragrancePage(res)
 	if err != nil {
 		return models.FragrancePage{}, err
 	}

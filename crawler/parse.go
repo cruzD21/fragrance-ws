@@ -20,15 +20,18 @@ type Fragrance struct {
 func parseFragrancePage(res *http.Response) (models.FragrancePage, error) {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
+		log.Println("problem in goquery")
 		return models.FragrancePage{}, err
 	}
 
 	fragrance, err := parseFragrance(doc)
 	if err != nil {
+		log.Println("problem in frag")
 		return models.FragrancePage{}, err
 	}
 	fragranceHouse, err := parseFragranceHouse(doc)
 	if err != nil {
+		log.Println("error in house")
 		return models.FragrancePage{}, err
 	}
 	noteCategories := parseNotePyramid(doc)

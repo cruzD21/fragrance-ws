@@ -67,6 +67,11 @@ func (db *DatabaseConn) InsertIntoFragrances(fragrance models.Fragrance, houseID
 	}
 
 	fragrance.HouseID = houseID
+	_, err = db.GetFragranceID(fragrance.Name)
+	if err != nil {
+		return 0, errors.New("fragrance already exists ib db, skipping")
+	}
+
 	log.Println("house id", houseID)
 	data, _, err := db.Supabase.
 		From("fragrance").
@@ -120,6 +125,34 @@ func (db *DatabaseConn) InsertIntoFragranceHouse(house models.FragranceHouse) (i
 
 	return res[0].HouseID, nil
 }
+
+//func (db *DatabaseConn) InsertFailedURLS(url []string) {
+//	var err error
+//	if len(url) == 0 {
+//		log.Println("no failed urls")
+//		return
+//	}
+//
+//	data, _, err := db.Supabase.
+//		From("fragrance_house").
+//		Insert(
+//			house,
+//			false,
+//			"",
+//			"representation",
+//			"exact",
+//		).Execute()
+//
+//	if err != nil {
+//		return 0, err
+//	}
+//
+//	if err = json.Unmarshal(data, &res); err != nil {
+//		return 0, err
+//	}
+//
+//	return res[0].HouseID, nil
+//}
 
 func (db *DatabaseConn) GetFragranceID(fragName string) (int, error) {
 	var err error
