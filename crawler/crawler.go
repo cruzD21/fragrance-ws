@@ -7,6 +7,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 )
@@ -49,12 +50,19 @@ func (crwl *Crawler) Crawl() error {
 	var err error
 	var failedUrls []string
 	var data models.FragrancePage
+	var fragID string
 
 	pages := crwl.FindLinks(BaseBaseURL) // no repeating urls saved
 	log.Println("total pages 	", len(pages))
 
+	//initialize external services
 	err = DBConn.DatabaseInit()
 	if err != nil {
+		return err
+	}
+	awsClient, err := awsInit()
+	if err != nil {
+		log.Printf("awsInit -> %v", err)
 		return err
 	}
 
@@ -63,19 +71,25 @@ func (crwl *Crawler) Crawl() error {
 		newClient, _ := getProxyClient()
 		crwl.Client = newClient
 
-		data, err = crwl.GetFragrances(page)
+		data, fragID, err = crwl.GetFragrances(page)
 		if err != nil {
-			log.Println(err, "skipping page")
+			log.Printf("crwl.GetFragances -> %v, skipping page", err)
 			continue
 		}
 		fmt.Printf("%+v\n", data)
 
 		err = DBConn.InsertPage(data)
 		if err != nil {
-			log.Printf("error inserting into db with error : %e", err)
+			log.Printf("DBConn.InsertPage -> %v", err)
 			failedUrls = append(failedUrls, page)
 			continue //skip to next page
 		}
+		err = putObjectIntoBucket(awsClient, fragID) //insert fragrance image
+		if err != nil {
+			log.Printf("putObjectIntoBucket ->  %v, image not inserted", err)
+			continue
+		}
+
 	}
 
 	return nil
@@ -104,7 +118,7 @@ func (crwl *Crawler) FindLinks(baseURL string) map[string]bool {
 	return resultMap
 }
 
-func (crwl *Crawler) GetFragrances(url string) (models.FragrancePage, error) {
+func (crwl *Crawler) GetFragrances(url string) (models.FragrancePage, string, error) {
 	var err error
 	var data models.FragrancePage
 
@@ -115,16 +129,24 @@ func (crwl *Crawler) GetFragrances(url string) (models.FragrancePage, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusForbidden {
-		return models.FragrancePage{}, nil
+		return models.FragrancePage{}, "", nil
 	}
 
 	data, err = parseFragrancePage(res)
 	if err != nil {
-		return models.FragrancePage{}, err
+		log.Printf("parseFragrancePage -> %v", err)
+		return models.FragrancePage{}, "", err
 	}
 
+	fragID, err := extractID(url)
+	if err != nil {
+		log.Printf("extractID -> %v", err)
+		return models.FragrancePage{}, "", err
+	}
+	data.Fragrance.FraganticaID = fragID
+
 	// add to db
-	return data, nil
+	return data, fragID, nil
 }
 
 func validURL(url string) bool {
@@ -136,4 +158,21 @@ func validURL(url string) bool {
 	}
 	//url only has strictly "/perfume"
 	return true
+}
+
+func extractID(url string) (string, error) {
+	lastPart := path.Base(url)
+
+	lastDotIndex := strings.LastIndex(lastPart, ".")
+	if lastDotIndex == -1 {
+		return "", fmt.Errorf("no extension found in URL")
+	}
+
+	namePart := lastPart[:lastDotIndex]
+	lastNonDigitIndex := strings.LastIndexFunc(namePart, func(r rune) bool {
+		return !('0' <= r && r <= '9')
+	})
+
+	digits := namePart[lastNonDigitIndex+1:]
+	return digits, nil
 }

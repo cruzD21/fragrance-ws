@@ -69,6 +69,7 @@ func (db *DatabaseConn) InsertIntoFragrances(fragrance models.Fragrance, houseID
 	fragrance.HouseID = houseID
 	_, err = db.GetFragranceID(fragrance.Name)
 	if err != nil {
+		log.Printf("db.GetFragranceID -> %v", err)
 		return 0, errors.New("fragrance already exists ib db, skipping")
 	}
 
@@ -126,34 +127,6 @@ func (db *DatabaseConn) InsertIntoFragranceHouse(house models.FragranceHouse) (i
 	return res[0].HouseID, nil
 }
 
-//func (db *DatabaseConn) InsertFailedURLS(url []string) {
-//	var err error
-//	if len(url) == 0 {
-//		log.Println("no failed urls")
-//		return
-//	}
-//
-//	data, _, err := db.Supabase.
-//		From("fragrance_house").
-//		Insert(
-//			house,
-//			false,
-//			"",
-//			"representation",
-//			"exact",
-//		).Execute()
-//
-//	if err != nil {
-//		return 0, err
-//	}
-//
-//	if err = json.Unmarshal(data, &res); err != nil {
-//		return 0, err
-//	}
-//
-//	return res[0].HouseID, nil
-//}
-
 func (db *DatabaseConn) GetFragranceID(fragName string) (int, error) {
 	var err error
 	var res []struct {
@@ -168,7 +141,11 @@ func (db *DatabaseConn) GetFragranceID(fragName string) (int, error) {
 	if err = json.Unmarshal(data, &res); err != nil {
 		return 0, err
 	}
-	return res[0].ID, err
+	if len(res) == 0 {
+		return 0, nil
+	}
+	//log.Printf("this is response GetFragrances ->  %v", res)
+	return res[0].ID, nil
 }
 
 func (db *DatabaseConn) GetHouseID(HouseName string) (int, error) {
@@ -201,3 +178,31 @@ func (db *DatabaseConn) GetHouseID(HouseName string) (int, error) {
 
 	return res[0].ID, err
 }
+
+//func (db *DatabaseConn) InsertFailedURLS(url []string) {
+//	var err error
+//	if len(url) == 0 {
+//		log.Println("no failed urls")
+//		return
+//	}
+//
+//	data, _, err := db.Supabase.
+//		From("fragrance_house").
+//		Insert(
+//			house,
+//			false,
+//			"",
+//			"representation",
+//			"exact",
+//		).Execute()
+//
+//	if err != nil {
+//		return 0, err
+//	}
+//
+//	if err = json.Unmarshal(data, &res); err != nil {
+//		return 0, err
+//	}
+//
+//	return res[0].HouseID, nil
+//}

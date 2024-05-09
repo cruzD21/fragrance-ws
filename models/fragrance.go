@@ -1,9 +1,10 @@
 package models
 
 type Fragrance struct {
-	Name        string `json:"name"`
-	HouseID     int    `json:"house_id"`
-	Description string `json:"description"`
+	Name         string `json:"name"`
+	HouseID      int    `json:"house_id"`
+	Description  string `json:"description"`
+	FraganticaID string `json:"fraganticaID"`
 }
 
 type FragranceHouse struct {
